@@ -1,0 +1,99 @@
+import pandas
+import googlemaps
+import pickle
+import unicodecsv as csv
+
+def address_resolver(json):
+    # PARSE JSON TO FETCH REQUIERED ATTRIBUTES
+    final = {}
+    try:
+        if json[0]['address_components']:
+            for item in json[0]['address_components']:
+                final[item['types'][0]] = item['long_name']
+    except IndexError:
+        final['addr_id'] = 'null'
+        final['address'] = 'null'
+        final['street_number'] = 'null'
+        final['route'] = 'null'
+        final['subpremise'] = 'null'
+        final['locality'] = 'null'
+        final['administrative_area_level_1'] = 'null'
+        final['country'] = 'null'
+        final['postal_code'] = 'null'
+        final['postal_code_suffix'] = 'null'
+    try:
+        if (json[0]['geometry']):
+            for key, value in json[0]['geometry']['location'].items():
+                final[key] = value
+    except IndexError:
+        final['lat'] = 'null'
+        final['lng'] = 'null'
+
+    try:
+        if json[0]['formatted_address']:
+            final['formatted_address'] = json[0]['formatted_address']
+    except IndexError:
+        final['formatted_address'] = 'null'
+
+    return final
+
+
+if __name__ == '__main__':
+
+    # GOOGLE ACCOUNT KEY
+    gmaps = googlemaps.Client(key='GoogleAPIKey')
+
+    input_file = "C:\Users\sk13172\Desktop\ZS Clients\APOC\Google API Call\input Google API.xlsx"
+    reader = pandas.read_excel(input_file, header=[0],sheet_name='Sheet1')
+    writer_list =[]
+
+    for addr_id in reader['addr_id']:
+        addr_loc=reader[reader['addr_id']== addr_id].index.item()
+        address=reader.loc[addr_loc]['address']
+
+        # delay of 0.3 sec
+        time.sleep(0.3)
+        google_result = gmaps.geocode(address)
+        data = address_resolver(google_result)
+
+        # ******************
+
+
+        # *********
+
+        writer = {}
+        writer['addr_id'] = addr_id
+        writer['address'] = address
+        writer['street_number'] = data.get('street_number', '')
+        writer['street'] = data.get('route', '')
+        writer['Suite'] = data.get('subpremise', '')
+        writer['city'] = data.get('locality', '')
+        writer['state'] = data.get('administrative_area_level_1', '')
+        writer['country'] = data.get('country', '')
+        writer['zip_cd'] = data.get('postal_code', '')
+        writer['zip_cd_extn'] = data.get('postal_code_suffix', '')
+        writer['lat'] = data.get('lat', '')
+        writer['lng'] = data.get('lng', '')
+        writer['formatted_address'] = data.get('formatted_address', '')
+        writer_list.append(writer)
+
+
+    # writer_excel = pandas.ExcelWriter('C:\Users\sk13172\Desktop\APOC\Google API Call\output of GAPI.xlsx', encoding= 'utf-8')
+    # writer.to_excel(writer_excel)
+    # writer_excel.save()
+
+    with open('C:\Users\sk13172\Desktop\ZS Clients\APOC\Google API Call\outfile_non_all_Latin', 'wb') as fp:
+        pickle.dump(writer_list, fp)
+
+    # with open('outfile', 'rb') as fp:
+    #     itemlist = pickle.load(fp)
+
+    fieldnames= ['addr_id', 'address', 'street_number', 'street','Suite', 'city', 'state', 'country', 'zip_cd', 'zip_cd_extn', 'lat', 'lng',
+     'formatted_address']
+    # fieldnames = ['addr_id', 'address', 'street_number', 'street', 'city', 'state', 'country', 'zip_cd', 'zip_cd_extn',
+    #               'lat', 'lng', 'formatted_address','political','postal_code','administrative_area_level_2','administrative_area_level_1'], quoting=csv.QUOTE_ALL
+    excel_file='C:\Users\sk13172\Desktop\ZS Clients\APOC\Google API Call\Google API outfile_non_all_Latin.csv'
+    with open(excel_file, 'wb') as output_file:
+        dict_writer = csv.DictWriter(output_file, fieldnames=fieldnames, encoding='utf8', errors='ignore', quoting=csv.QUOTE_ALL)
+        dict_writer.writeheader()
+        dict_writer.writerows(writer_list)
